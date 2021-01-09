@@ -72,6 +72,7 @@ func health(c echo.Context) error {
 
 func switcher(c echo.Context) error {
 	var jsonBody Switcher
+	var errMsg error
 
 	err := c.Bind(&jsonBody)
 	if err != nil {
@@ -90,10 +91,13 @@ func switcher(c echo.Context) error {
 
 	if jsonBody.Switch == ENABLE {
 		err = hlk.RelayOn(jsonBody.ID)
-		_ = sendMessage(getMessage(HomeSensorsRelay, fmt.Sprintf("%s,id=%d value=true", Table, jsonBody.ID)))
+		errMsg = sendMessage(getMessage(HomeSensorsRelay, fmt.Sprintf("%s,id=%d value=true", Table, jsonBody.ID)))
 	} else if jsonBody.Switch == DISABLE {
 		err = hlk.RelayOff(jsonBody.ID)
-		_ = sendMessage(getMessage(HomeSensorsRelay, fmt.Sprintf("%s,id=%d value=false", Table, jsonBody.ID)))
+		errMsg = sendMessage(getMessage(HomeSensorsRelay, fmt.Sprintf("%s,id=%d value=false", Table, jsonBody.ID)))
+	}
+	if errMsg != nil {
+		return resError(c, http.StatusInternalServerError, errMsg)
 	}
 	if err != nil {
 		return resError(c, http.StatusBadRequest, err)
@@ -209,7 +213,8 @@ func getMessage(topic string, payload string) Message {
 
 func getHlkSw16Host() string {
 	if len(os.Getenv(HlkSw16Host)) == 0 {
-		_ = os.Setenv(HlkSw16Host, "192.168.16.254")
+		//_ = os.Setenv(HlkSw16Host, "192.168.16.254")
+		_ = os.Setenv(HlkSw16Host, "192.168.0.200")
 	}
 	return os.Getenv(HlkSw16Host)
 }
@@ -222,5 +227,6 @@ func getHlkSw16Port() string {
 }
 
 func getMqttSenderHost() string {
-	return os.Getenv(MqttSenderHost)
+	//return os.Getenv(MqttSenderHost)
+	return "localhost:80755"
 }
