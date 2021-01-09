@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	ENABLE                 = "on"
-	DISABLE                = "off"
-	HlkSw16Host            = "HLK_SW16_HOST"
-	HlkSw16Port            = "HLK_SW16_PORT"
-	MqttSenderHost         = "MQTT_SENDER_HOST"
-	Table                  = "relay"
-	HomeSensorsTemperature = "home/sensors/relay"
+	ENABLE           = "on"
+	DISABLE          = "off"
+	HlkSw16Host      = "HLK_SW16_HOST"
+	HlkSw16Port      = "HLK_SW16_PORT"
+	MqttSenderHost   = "MQTT_SENDER_HOST"
+	Table            = "relay"
+	HomeSensorsRelay = "home/sensors/relay"
 )
 
 type Relays struct {
@@ -90,10 +90,10 @@ func switcher(c echo.Context) error {
 
 	if jsonBody.Switch == ENABLE {
 		err = hlk.RelayOn(jsonBody.ID)
-		sendMessage(getMessage(HomeSensorsTemperature, fmt.Sprintf("%s,id=%d value=true", Table, jsonBody.ID)))
+		_ = sendMessage(getMessage(HomeSensorsRelay, fmt.Sprintf("%s,id=%d value=true", Table, jsonBody.ID)))
 	} else if jsonBody.Switch == DISABLE {
 		err = hlk.RelayOff(jsonBody.ID)
-		sendMessage(getMessage(HomeSensorsTemperature, fmt.Sprintf("%s,id=%d value=false", Table, jsonBody.ID)))
+		_ = sendMessage(getMessage(HomeSensorsRelay, fmt.Sprintf("%s,id=%d value=false", Table, jsonBody.ID)))
 	}
 	if err != nil {
 		return resError(c, http.StatusBadRequest, err)
@@ -185,11 +185,22 @@ func resError(c echo.Context, statusCode int, err error) error {
 	})
 }
 
-func sendMessage(message Message) {
+func sendMessage(message Message) error {
 	uri := fmt.Sprintf("http://%s/publish", getMqttSenderHost())
 	body := new(bytes.Buffer)
-	_ = json.NewEncoder(body).Encode(message)
-	_, _ = http.Post(uri, "application/json; charset=utf-8", body)
+	err := json.NewEncoder(body).Encode(message)
+	if err != nil {
+		return fmt.Errorf("%q: %v", uri, err)
+	}
+	resp, err := http.Post(uri, "application/json; charset=utf-8", body)
+	if err != nil {
+		return fmt.Errorf("cannot fetch URL %q: %v", uri, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("unexpected http POST status: %s", resp.Status)
+	}
+	return nil
 }
 
 func getMessage(topic string, payload string) Message {
