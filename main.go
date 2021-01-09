@@ -213,8 +213,7 @@ func getMessage(topic string, payload string) Message {
 
 func getHlkSw16Host() string {
 	if len(os.Getenv(HlkSw16Host)) == 0 {
-		//_ = os.Setenv(HlkSw16Host, "192.168.16.254")
-		_ = os.Setenv(HlkSw16Host, "192.168.0.200")
+		_ = os.Setenv(HlkSw16Host, "192.168.16.254")
 	}
 	return os.Getenv(HlkSw16Host)
 }
@@ -227,6 +226,5 @@ func getHlkSw16Port() string {
 }
 
 func getMqttSenderHost() string {
-	//return os.Getenv(MqttSenderHost)
-	return "localhost:80755"
+	return os.Getenv(MqttSenderHost)
 }
