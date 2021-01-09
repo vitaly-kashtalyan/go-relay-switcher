@@ -8,3 +8,4 @@ services:
     environment:
       HLK_SW16_HOST: 192.168.0.200
       HLK_SW16_PORT: 8080
+      MQTT_SENDER_HOST: mqttsender:8080

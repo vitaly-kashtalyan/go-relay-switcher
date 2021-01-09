@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo"
@@ -12,10 +13,13 @@ import (
 )
 
 const (
-	ENABLE      = "on"
-	DISABLE     = "off"
-	HlkSw16Host = "HLK_SW16_HOST"
-	HlkSw16Port = "HLK_SW16_PORT"
+	ENABLE                 = "on"
+	DISABLE                = "off"
+	HlkSw16Host            = "HLK_SW16_HOST"
+	HlkSw16Port            = "HLK_SW16_PORT"
+	MqttSenderHost         = "MQTT_SENDER_HOST"
+	Table                  = "relay"
+	HomeSensorsTemperature = "home/sensors/relay"
 )
 
 type Relays struct {
@@ -34,6 +38,13 @@ type BaseResponse struct {
 type Switcher struct {
 	ID     int    `json:"id" binding:"required"`
 	Switch string `json:"switch" binding:"required"`
+}
+
+type Message struct {
+	Topic    string `json:"topic"`
+	Qos      int    `json:"qos"`
+	Retained bool   `json:"retained"`
+	Payload  string `json:"payload"`
 }
 
 func main() {
@@ -79,8 +90,10 @@ func switcher(c echo.Context) error {
 
 	if jsonBody.Switch == ENABLE {
 		err = hlk.RelayOn(jsonBody.ID)
+		sendMessage(getMessage(HomeSensorsTemperature, fmt.Sprintf("%s,id=%d value=true", Table, jsonBody.ID)))
 	} else if jsonBody.Switch == DISABLE {
 		err = hlk.RelayOff(jsonBody.ID)
+		sendMessage(getMessage(HomeSensorsTemperature, fmt.Sprintf("%s,id=%d value=false", Table, jsonBody.ID)))
 	}
 	if err != nil {
 		return resError(c, http.StatusBadRequest, err)
@@ -172,6 +185,17 @@ func resError(c echo.Context, statusCode int, err error) error {
 	})
 }
 
+func sendMessage(message Message) {
+	uri := fmt.Sprintf("http://%s/publish", getMqttSenderHost())
+	body := new(bytes.Buffer)
+	_ = json.NewEncoder(body).Encode(message)
+	_, _ = http.Post(uri, "application/json; charset=utf-8", body)
+}
+
+func getMessage(topic string, payload string) Message {
+	return Message{Topic: topic, Qos: 2, Retained: false, Payload: payload}
+}
+
 func getHlkSw16Host() string {
 	if len(os.Getenv(HlkSw16Host)) == 0 {
 		_ = os.Setenv(HlkSw16Host, "192.168.16.254")
@@ -184,4 +208,8 @@ func getHlkSw16Port() string {
 		_ = os.Setenv(HlkSw16Port, "8080")
 	}
 	return os.Getenv(HlkSw16Port)
+}
+
+func getMqttSenderHost() string {
+	return os.Getenv(MqttSenderHost)
 }
